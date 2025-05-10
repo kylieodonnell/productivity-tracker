@@ -56,9 +56,18 @@ export const formatDate = (date) => {
 //format week range for display
 export const formatWeekRange = (startDate) => {
   const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 6);
+  endDate.setDate(endDate.getDate() + 6); //add 6 days to get to saturday
   
-  return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  // format both dates 
+  const startStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const endStr = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  
+  // add year if its different 
+  const yearStr = endDate.getFullYear() !== startDate.getFullYear() 
+    ? `, ${endDate.getFullYear()}`
+    : '';
+  
+  return `${startStr} - ${endStr}${yearStr}`;
 };
 
 //group tasks by date and calculate focus level totals

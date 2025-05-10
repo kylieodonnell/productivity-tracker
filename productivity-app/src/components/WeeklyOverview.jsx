@@ -1,11 +1,19 @@
 import { useState } from "react";
 import styles from "../styles/App.module.css";
-import { parseTime, formatWeekRange, getFocusLevel, getDateForDay, formatDate, calculateHeight } from "../utils/chartUtils";
-
+import { parseTime, formatWeekRange, getFocusLevel, formatDate, calculateHeight } from "../utils/chartUtils";
 
 export function WeeklyOverview({ tasks }) {
   const days = ["Su", "M", "Tu", "W", "Th", "F", "S"];
-  const [selectedWeek, setSelectedWeek] = useState(new Date());
+  const [selectedWeek, setSelectedWeek] = useState(() => {
+    // initialize w start of current week 
+    const today = new Date();
+    // set to midnight in local, not utc 
+    today.setHours(0, 0, 0, 0);
+    const currentDay = today.getDay();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - currentDay);
+    return startOfWeek;
+  });
 
   const navigateWeek = (direction) => {
     const newDate = new Date(selectedWeek);
@@ -55,10 +63,15 @@ export function WeeklyOverview({ tasks }) {
 
       <div className={styles.weeklyChart}>
         {days.map((day, index) => {
-          const date = getDateForDay(selectedWeek, index);
+          // Calculate the date for this day of the week
+          const date = new Date(selectedWeek);
+          date.setDate(selectedWeek.getDate() + index);
+          // Ensure the date is at midnight in local timezone
+          date.setHours(0, 0, 0, 0);
           const dateStr = formatDate(date);
           const dayTasks = tasksByDate[dateStr] || { high: 0, medium: 0, low: 0 };
           
+
           const heights = {
             high: calculateHeight(dayTasks.high, maxTotalMinutes),
             medium: calculateHeight(dayTasks.medium, maxTotalMinutes),

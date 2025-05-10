@@ -27,7 +27,7 @@ export function Tasks({ tasks }) {
     return taskDate >= start && taskDate <= end;
   });
 
-  //group tasks by date
+  //group tasks by date for the list view
   const tasksByDate = monthTasks.reduce((acc, task) => {
     const date = new Date(task.date).toLocaleDateString('en-US', {
       month: 'long',
@@ -59,7 +59,7 @@ export function Tasks({ tasks }) {
     <section className={styles.tasksSection}>
       <h2 className={styles.sectionTitle}>All Tasks</h2>
       
-      <WeeklyOverview tasks={tasks} />
+      <WeeklyOverview tasks={monthTasks} />
 
       <div className={styles.weekNavigation}>
         <button 
