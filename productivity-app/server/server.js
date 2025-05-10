@@ -129,6 +129,12 @@ app.post('/api/tasks', async (req, res) => {
     }
     
     client = await pool.connect();
+    
+    // ensure id is auto incremented
+    // can add a task on the front-end even if a task was manually added on the backend 
+    await client.query('SELECT setval(\'tasks_id_seq\', (SELECT COALESCE(MAX(id), 0) + 1 FROM tasks))');
+    
+    // insert task
     const query = `
       INSERT INTO tasks (date, focuslevel, description, time)
       VALUES (CURRENT_DATE, $1, $2, $3)
