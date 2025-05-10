@@ -4,7 +4,7 @@ import { Pool } from 'pg';
 import { generateDailyReport, generateTaskStatisticsReport } from './src/claude.js';
 import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
-import { searchSimilarTasks } from './src/search.js';
+import { searchSimilarTasksVector, addTasksToVectorStore } from './src/vectorStore.js';
 
 dotenv.config();
 
@@ -152,28 +152,26 @@ app.post('/api/tasks', async (req, res) => {
 app.get('/api/daily-report', async (req, res) => {
   const client = await pool.connect();
   try {
-    //get today's tasks
-    const today = new Date().toISOString().split('T')[0];
+    //get today's tasks using timezone conversion
     const todayResult = await client.query(
-      'SELECT * FROM tasks WHERE date::date = $1 ORDER BY id',
-      [today]
+      `SELECT * FROM tasks 
+       WHERE date::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date 
+       ORDER BY id`
     );
 
-    //get last week's tasks
-    const lastWeekStart = new Date();
-    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-    const lastWeekEnd = new Date();
-    lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
-    
+    //get last week's tasks using timezone conversion
     const lastWeekResult = await client.query(
-      'SELECT * FROM tasks WHERE date::date BETWEEN $1 AND $2 ORDER BY date, id',
-      [lastWeekStart.toISOString().split('T')[0], lastWeekEnd.toISOString().split('T')[0]]
+      `SELECT * FROM tasks 
+       WHERE date::date BETWEEN 
+         ((CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date - INTERVAL '7 days')
+         AND 
+         ((CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date - INTERVAL '1 day')
+       ORDER BY date, id`
     );
 
     const report = await generateDailyReport(todayResult.rows, lastWeekResult.rows);
     res.json({ report });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
@@ -204,19 +202,43 @@ app.post('/api/search', async (req, res) => {
     if (!query) {
       return res.status(400).json({ error: 'Query is required' });
     }
-    
+        
     //get all tasks
     const result = await client.query(`
       SELECT id, date, focuslevel as "focusLevel", description as task, time
       FROM tasks
       ORDER BY date DESC, id DESC;
     `);
+        
+    // add tasks to store
+    await addTasksToVectorStore(result.rows);
     
     //perform semantic search
-    const searchResults = await searchSimilarTasks(query, result.rows);
-    res.json(searchResults);
+    const searchResults = await searchSimilarTasksVector(query);
+    // console.log('search completed with', searchResults.length, 'results');
+    
+    // format the response to match the expected structure
+    const formattedResults = searchResults.map(result => {
+      // format date properly
+      const date = new Date(result.metadata.date);
+ 
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;      
+      return {
+        date: formattedDate,
+        tasks: [{
+          task: result.task,
+          time: result.metadata.time,
+          focusLevel: result.metadata.focusLevel
+        }],
+        similarity: result.similarity
+      };
+    });
+    
+    res.json({ matches: formattedResults });
   } catch (error) {
-    console.error('Error performing search:', error);
     res.status(500).json({ error: 'Failed to perform search' });
   } finally {
     client.release();

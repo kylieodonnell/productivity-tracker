@@ -12,13 +12,16 @@ export function DailyTasks({ tasks, onAddTask }) {
   });
   const [dailyReport, setDailyReport] = useState("");
 
+  //fetch daily report on mount
   useEffect(() => {
     const fetchReport = async () => {
+      console.log('fetching  daily report on mount...');
       const report = await getDailyReport();
+      console.log('received daily report:', report);
       setDailyReport(report);
     };
     fetchReport();
-  }, []); //only fetch on component mount
+  }, []);
 
   const formatDate = () => {
     const today = new Date();
@@ -32,8 +35,10 @@ export function DailyTasks({ tasks, onAddTask }) {
       await onAddTask(newTask);
       setNewTask({ task: "", time: "", focusLevel: "low" });
       setIsModalOpen(false);
-      //fetch new report after adding a task, update the daily report state
+      //fetch new report after adding a task
+      console.log('fetching daily report after adding task...');
       const report = await getDailyReport();
+      console.log('received daily report:', report);
       setDailyReport(report);
     }
   };

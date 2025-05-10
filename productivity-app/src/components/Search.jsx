@@ -27,11 +27,12 @@ export function Search() {
       }
 
       const results = await response.json();
+      console.log('server response:', results);
       setSearchResults(results);
       //reset expanded dates when new search is performed
       setExpandedDates({});
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('search error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -45,15 +46,13 @@ export function Search() {
     return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
   };
 
-  const groupTasksByDate = (tasks) => {
+  const groupTasksByDate = (tasks, matchDate) => {
+
     const groups = {};
-    tasks.forEach(task => {
-      const date = new Date(task.date).toLocaleDateString();
-      if (!groups[date]) {
-        groups[date] = [];
-      }
-      groups[date].push(task);
-    });
+    
+    // create single group w the match date
+    const date = new Date(matchDate).toLocaleDateString();
+    groups[date] = tasks;
     return groups;
   };
 
@@ -91,7 +90,7 @@ export function Search() {
         <div className={styles.searchResults}>
           <h3 className={styles.searchResultsTitle}>Search Results</h3>
           {searchResults.matches.map((match, index) => {
-            const taskGroups = groupTasksByDate(match.tasks);
+            const taskGroups = groupTasksByDate(match.tasks, match.date);
             return (
               <div key={index} className={styles.searchResultGroup}>
                 <div className={styles.searchResultHeader}>

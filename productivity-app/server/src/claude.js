@@ -86,7 +86,8 @@ function formatTasksForPrompt(tasks) {
     }
 
     const focusLevel = task.focusLevel?.toLowerCase().replace('focus', '') || 'unknown';
-    return `- ${task.task} (${timeStr}, ${focusLevel} focus)`;
+    // use description instead of task
+    return `- ${task.description} (${timeStr}, ${focusLevel} focus)`;
   }).join('\n');
 }
 
