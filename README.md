@@ -38,9 +38,9 @@ Make sure you have PostgreSQL installed and running locally.
 CREATE TABLE tasks (
     id SERIAL PRIMARY KEY,
     date DATE NOT NULL,
-    focuslevel VARCHAR(20) NOT NULL,
+    focuslevel TEXT NOT NULL,
     description TEXT NOT NULL,
-    time TIME NOT NULL
+    time INTERVAL NOT NULL
 );
 ```
 
