@@ -29,13 +29,20 @@ export function Search() {
       const results = await response.json();
       console.log('server response:', results);
       setSearchResults(results);
-      //reset expanded dates when new search is performed
       setExpandedDates({});
     } catch (error) {
       console.error('search error:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // get week start date
+  const getWeekStart = (date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    return new Date(d.setDate(diff));
   };
 
   const formatDateRange = (weekStart) => {
@@ -46,14 +53,32 @@ export function Search() {
     return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
   };
 
-  const groupTasksByDate = (tasks, matchDate) => {
-
-    const groups = {};
+  // group tasks by week
+  const groupTasksByWeek = (matches) => {
+    const weekGroups = {};
     
-    // create single group w the match date
-    const date = new Date(matchDate).toLocaleDateString();
-    groups[date] = tasks;
-    return groups;
+    matches.forEach(match => {
+      const weekStart = getWeekStart(match.date);
+      const weekKey = weekStart.toISOString();
+      
+      if (!weekGroups[weekKey]) {
+        weekGroups[weekKey] = {
+          weekStart,
+          tasks: [],
+          similarity: match.similarity
+        };
+      }
+      
+      // add tasks to week group  
+      match.tasks.forEach(task => {
+        weekGroups[weekKey].tasks.push({
+          ...task,
+          date: match.date
+        });
+      });
+    });
+    
+    return Object.values(weekGroups).sort((a, b) => b.weekStart - a.weekStart);
   };
 
   const toggleDate = (date) => {
@@ -89,44 +114,50 @@ export function Search() {
       {searchResults && (
         <div className={styles.searchResults}>
           <h3 className={styles.searchResultsTitle}>Search Results</h3>
-          {searchResults.matches.map((match, index) => {
-            const taskGroups = groupTasksByDate(match.tasks, match.date);
-            return (
-              <div key={index} className={styles.searchResultGroup}>
-                <div className={styles.searchResultHeader}>
-                  <h4>Week of {formatDateRange(match.date)}</h4>
-                  <div className={styles.similarity}>
-                    Similarity: {Math.round(match.similarity * 100)}%
-                  </div>
+          {groupTasksByWeek(searchResults.matches).map((weekGroup, index) => (
+            <div key={index} className={styles.searchResultGroup}>
+              <div className={styles.searchResultHeader}>
+                <h4>Week of {formatDateRange(weekGroup.weekStart)}</h4>
+                <div className={styles.similarity}>
+                  Similarity: {Math.round(weekGroup.similarity * 100)}%
                 </div>
-                {Object.entries(taskGroups).map(([date, tasks]) => (
-                  <div key={date} className={styles.dateGroup}>
-                    <div 
-                      className={styles.dateHeader}
-                      onClick={() => toggleDate(date)}
-                    >
-                      <span className={styles.date}>{date}</span>
-                      <span className={`${styles.caret} ${expandedDates[date] ? styles.caretExpanded : ''}`}>
-                        ▶
-                      </span>
-                    </div>
-                    {expandedDates[date] && (
-                      <div className={styles.tasksList}>
-                        {tasks.map((task) => (
-                          <TaskCard
-                            key={task.id}
-                            task={task.task}
-                            time={task.time}
-                            focusLevel={task.focusLevel}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
               </div>
-            );
-          })}
+              
+              {/* group tasks by date within week */}
+              {Object.entries(
+                weekGroup.tasks.reduce((acc, task) => {
+                  const date = new Date(task.date).toLocaleDateString();
+                  if (!acc[date]) acc[date] = [];
+                  acc[date].push(task);
+                  return acc;
+                }, {})
+              ).map(([date, tasks]) => (
+                <div key={date} className={styles.dateGroup}>
+                  <div 
+                    className={styles.dateHeader}
+                    onClick={() => toggleDate(date)}
+                  >
+                    <span className={styles.date}>{date}</span>
+                    <span className={`${styles.caret} ${expandedDates[date] ? styles.caretExpanded : ''}`}>
+                      {expandedDates[date] ? '▼' : '▶'}
+                    </span>
+                  </div>
+                  {expandedDates[date] && (
+                    <div className={styles.tasksList}>
+                      {tasks.map((task, taskIndex) => (
+                        <TaskCard
+                          key={`${date}-${taskIndex}`}
+                          task={task.task}
+                          time={task.time}
+                          focusLevel={task.focusLevel}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
       )}
     </section>
